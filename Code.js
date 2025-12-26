@@ -1,9 +1,11 @@
 /**
- * Google Docs Add-on: StickyRolo
- * The script interacts with document tabs to fetch structured metadata
- * and provides context-aware suggestions based on the user's cursor position.
- * The metadata is organized using headings, which define hierarchy. Each entry can have descriptions or properties.
- * The add-on includes a sidebar UI for user interaction. Users can change how much context to include when looking up values.
+ * This is a Google Docs Add-on written in Google Apps Script
+ * The advanced Docs API should be enabled on the Apps Script project.
+ * Description:
+ * The script fetches a structured metadata tab from the current Google Doc
+ * The metadata is organized using headings, which define hierarchy. Each entry starts with a title, then a short description, and a list of properties.
+ * It then provides the metadata items for the paragraph the user's cursor is in with the add-on's view in the sidebar.
+ * Users can change how much context to include when looking up values and some other settings via the sidebar as well.
  */
 
 function onOpen() {
