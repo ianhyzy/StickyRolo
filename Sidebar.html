@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <!-- Load Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+      body {
+        font-family: 'Google Sans', Arial, sans-serif;
+        background-color: #f9f9f9;
+        color: #333;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        box-sizing: border-box;
+        overflow: hidden;
+      }
+
+      /* --- Views Management --- */
+      .view {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        width: 100%;
+        transition: transform 0.3s ease;
+      }
+      
+      .hidden {
+        display: none !important;
+      }
+
+      /* --- Main Content Area --- */
+      #content {
+        flex-grow: 1;
+        overflow-y: auto;
+        padding: 12px;
+        padding-bottom: 20px;
+      }
+
+      /* --- Cards & Typography --- */
+      .loading {
+        font-style: italic;
+        color: #666;
+        font-size: 12px;
+        text-align: center;
+        margin-top: 20px;
+      }
+
+      /* Sticky Note Style */
+      .card {
+        background: #fffde7; /* Faint yellow hue */
+        border: 1px solid #e6e0b0; /* Subtle border matching the yellow */
+        border-radius: 0; /* Square corners */
+        padding: 12px;
+        margin-bottom: 12px;
+        box-shadow: 0 1px 2px rgba(60,64,67,0.15);
+      }
+
+      .card h4 {
+        margin: 0 0 2px 0; /* Reduced margin to stick closer to path */
+        color: #202124; /* Darker text for better contrast on yellow */
+        font-size: 16px;
+      }
+
+      /* Updated Category Path Style */
+      .card-category {
+        font-size: 11px;
+        color: #70757a;
+        margin-bottom: 8px;
+        font-weight: 400;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      
+      .card-category span {
+        white-space: nowrap;
+      }
+
+      .card p {
+        margin: 0 0 8px 0;
+        font-size: 13px;
+        line-height: 1.5;
+        color: #3c4043;
+      }
+
+      /* Styles for the new Properties section */
+      .property-list {
+        border-top: 1px solid #e6e0b0; /* Match card border */
+        padding-top: 8px;
+        margin-top: 8px;
+      }
+
+      .property-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        margin-bottom: 4px;
+      }
+
+      .property-key {
+        font-weight: 600;
+        color: #5f6368;
+        margin-right: 8px;
+      }
+
+      .property-value {
+        color: #202124;
+        text-align: right;
+        word-break: break-word;
+      }
+
+      .error {
+        color: #d93025;
+        background: #fce8e6;
+        padding: 8px;
+        border-radius: 4px;
+        font-size: 12px;
+      }
+
+      /* --- Footer & Controls --- */
+      .footer {
+        flex-shrink: 0;
+        background: #fff;
+        border-top: 1px solid #dadce0;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      #status-row {
+        text-align: center;
+        margin-bottom: 4px;
+        transition: all 0.2s;
+      }
+
+      #status-indicator {
+        font-size: 11px;
+        color: #9aa0a6;
+      }
+
+      .controls-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      /* --- Buttons --- */
+      button.action-btn {
+        background-color: #f1f3f4;
+        color: #3c4043;
+        border: 1px solid transparent;
+        border-radius: 4px;
+        padding: 8px 16px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        flex-grow: 1; 
+        transition: background-color 0.2s;
+        height: 36px;
+      }
+
+      button.action-btn:hover {
+        background-color: #e8eaed;
+      }
+
+      /* Icon Button (Gear) */
+      .icon-btn {
+        color: #5f6368;
+        cursor: pointer;
+        padding: 6px;
+        border-radius: 50%;
+        transition: background-color 0.2s;
+        user-select: none;
+      }
+
+      .icon-btn:hover {
+        background-color: #f1f3f4;
+      }
+
+      /* --- Settings View --- */
+      #view-settings {
+        background: #fff;
+        padding: 0;
+      }
+
+      .settings-header {
+        display: flex;
+        align-items: center;
+        padding: 12px;
+        border-bottom: 1px solid #dadce0;
+      }
+
+      .settings-header h3 {
+        margin: 0 0 0 12px;
+        font-size: 16px;
+        font-weight: 500;
+      }
+
+      .settings-content {
+        padding: 16px;
+      }
+
+      .setting-item {
+        margin-bottom: 20px; 
+      }
+
+      .setting-header-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 4px;
+      }
+
+      .setting-label {
+        font-size: 14px;
+        color: #3c4043;
+        font-weight: 500;
+      }
+
+      .setting-description {
+        font-size: 11px;
+        color: #70757a;
+        margin-top: 2px;
+        line-height: 1.4;
+        max-width: 90%;
+      }
+
+      /* Select Dropdown */
+      .setting-select {
+        padding: 6px;
+        border: 1px solid #dadce0;
+        border-radius: 4px;
+        background: white;
+        font-family: inherit;
+        font-size: 13px;
+        color: #3c4043;
+        max-width: 150px;
+      }
+
+      /* Toggle Switch */
+      .switch {
+        position: relative;
+        display: inline-block;
+        width: 34px;
+        height: 20px;
+        flex-shrink: 0;
+      }
+
+      .switch input { 
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: .4s;
+        border-radius: 34px;
+      }
+
+      .slider:before {
+        position: absolute;
+        content: "";
+        height: 14px;
+        width: 14px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: .4s;
+        border-radius: 50%;
+      }
+
+      input:checked + .slider {
+        background-color: #1a73e8;
+      }
+
+      input:checked + .slider:before {
+        transform: translateX(14px);
+      }
+    </style>
+  </head>
+  <body>
+
+    <!-- === MAIN VIEW === -->
+    <div id="view-home" class="view">
+      <!-- Scrollable Content -->
+      <div id="content">
+        <div class="loading">Loading tab data...</div>
+      </div>
+
+      <!-- Fixed Bottom Controls -->
+      <div class="footer">
+        <div id="status-row">
+          <div id="status-indicator">Initializing...</div>
+        </div>
+        
+        <div class="controls-row">
+          <button class="action-btn" onclick="fetchMetadata()">Reload Metadata</button>
+          <i class="material-icons icon-btn" onclick="switchView('settings')" title="Settings">settings</i>
+        </div>
+      </div>
+    </div>
+
+    <!-- === SETTINGS VIEW === -->
+    <div id="view-settings" class="view hidden">
+      <div class="settings-header">
+        <i class="material-icons icon-btn" onclick="switchView('home')">arrow_back</i>
+        <h3>Configuration</h3>
+      </div>
+      
+      <div class="settings-content">
+        <!-- Source Tab Setting -->
+        <div class="setting-item">
+          <div class="setting-header-row">
+            <span class="setting-label">Source Tab</span>
+            <select id="tab-selector" class="setting-select" onchange="toggleTabSetting()">
+              <option value="Metadata">Metadata</option>
+            </select>
+          </div>
+          <div class="setting-description">
+            Select the specific tab in your document that contains your character and location definitions.
+          </div>
+        </div>
+
+        <!-- Status Line Setting -->
+        <div class="setting-item">
+          <div class="setting-header-row">
+            <span class="setting-label">Show Status Line</span>
+            <label class="switch">
+              <input type="checkbox" id="toggle-status" onchange="toggleStatusSetting()">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="setting-description">
+            Show the "Active / Scanning" indicator at the bottom of the sidebar.
+          </div>
+        </div>
+
+        <!-- Category Setting -->
+        <div class="setting-item">
+          <div class="setting-header-row">
+            <span class="setting-label">Show Categories</span>
+            <label class="switch">
+              <input type="checkbox" id="toggle-category" onchange="toggleCategorySetting()">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="setting-description">
+            Display the breadcrumb path (e.g., Headings) above the item description in the sticky note.
+          </div>
+        </div>
+
+        <!-- Context Range Setting -->
+        <div class="setting-item">
+          <div class="setting-header-row">
+            <span class="setting-label">Context Range (Paragraphs)</span>
+            <span id="range-value" style="font-size:12px; color:#5f6368; font-weight:500;">0</span>
+          </div>
+          <input type="range" id="range-slider" min="0" max="5" step="1" style="width:100%" oninput="updateRangeDisplay()" onchange="saveRangeSetting()">
+          <div class="setting-description">
+            Number of paragraphs before and after the cursor to scan for keywords.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <script>
+      let cachedMetadata = {};
+      let isMetadataLoaded = false;
+      let showStatusLine = true;
+      let showCategory = true;
+      let selectedTabTitle = 'Metadata';
+      let contextRange = 0;
+
+      window.onload = function() {
+        // Load settings from storage
+        loadSettings();
+        
+        // Initial Fetch
+        fetchMetadata();
+        
+        // Start polling
+        setInterval(pollContext, 2000); 
+
+        // Populate tab list for settings
+        loadTabList();
+      };
+
+      // --- Settings Logic ---
+      function loadSettings() {
+        const savedStatus = localStorage.getItem('novelHelper_showStatus');
+        showStatusLine = savedStatus === null ? true : (savedStatus === 'true');
+        
+        const savedCategory = localStorage.getItem('novelHelper_showCategory');
+        showCategory = savedCategory === null ? true : (savedCategory === 'true');
+
+        const savedTab = localStorage.getItem('novelHelper_selectedTab');
+        if (savedTab) selectedTabTitle = savedTab;
+
+        const savedRange = localStorage.getItem('novelHelper_contextRange');
+        contextRange = savedRange ? parseInt(savedRange) : 0;
+
+        // Update DOM
+        document.getElementById('toggle-status').checked = showStatusLine;
+        document.getElementById('toggle-category').checked = showCategory;
+        
+        document.getElementById('range-slider').value = contextRange;
+        document.getElementById('range-value').innerText = contextRange;
+
+        applyStatusVisibility();
+      }
+
+      function loadTabList() {
+        google.script.run
+          .withSuccessHandler(function(tabs) {
+            const select = document.getElementById('tab-selector');
+            select.innerHTML = ''; // Clear defaults
+            
+            let foundCurrent = false;
+            tabs.forEach(tab => {
+              const opt = document.createElement('option');
+              opt.value = tab.title;
+              opt.text = tab.title;
+              select.appendChild(opt);
+              if (tab.title === selectedTabTitle) foundCurrent = true;
+            });
+
+            if (!foundCurrent && tabs.length > 0) {
+               selectedTabTitle = tabs[0].title;
+               localStorage.setItem('novelHelper_selectedTab', selectedTabTitle);
+            }
+            
+            select.value = selectedTabTitle;
+          })
+          .getTabList();
+      }
+
+      function toggleStatusSetting() {
+        showStatusLine = document.getElementById('toggle-status').checked;
+        localStorage.setItem('novelHelper_showStatus', showStatusLine);
+        applyStatusVisibility();
+      }
+      
+      function toggleCategorySetting() {
+        showCategory = document.getElementById('toggle-category').checked;
+        localStorage.setItem('novelHelper_showCategory', showCategory);
+        if (isMetadataLoaded) pollContext();
+      }
+
+      function toggleTabSetting() {
+        const select = document.getElementById('tab-selector');
+        selectedTabTitle = select.value;
+        localStorage.setItem('novelHelper_selectedTab', selectedTabTitle);
+        fetchMetadata();
+      }
+
+      function updateRangeDisplay() {
+        const val = document.getElementById('range-slider').value;
+        document.getElementById('range-value').innerText = val;
+      }
+
+      function saveRangeSetting() {
+        contextRange = parseInt(document.getElementById('range-slider').value);
+        localStorage.setItem('novelHelper_contextRange', contextRange);
+        // Force poll
+        pollContext();
+      }
+
+      function applyStatusVisibility() {
+        const row = document.getElementById('status-row');
+        if (showStatusLine) {
+          row.style.display = 'block';
+        } else {
+          row.style.display = 'none';
+        }
+      }
+
+      function switchView(viewName) {
+        const home = document.getElementById('view-home');
+        const settings = document.getElementById('view-settings');
+        
+        if (viewName === 'settings') {
+          loadTabList(); 
+          home.classList.add('hidden');
+          settings.classList.remove('hidden');
+        } else {
+          settings.classList.add('hidden');
+          home.classList.remove('hidden');
+        }
+      }
+
+      // --- Core Logic ---
+      function fetchMetadata() {
+        const btn = document.querySelector('button.action-btn');
+        const originalText = btn.innerText;
+        btn.innerText = "Loading...";
+        btn.disabled = true;
+        
+        updateStatus(`Fetching from "${selectedTabTitle}"...`);
+
+        google.script.run
+          .withSuccessHandler(function(response) {
+            btn.innerText = originalText;
+            btn.disabled = false;
+
+            if (response.error) {
+              document.getElementById('content').innerHTML = `<div class="error">${response.error}</div>`;
+              updateStatus("Error loading metadata");
+            } else {
+              cachedMetadata = response.items;
+              isMetadataLoaded = true;
+              document.getElementById('content').innerHTML = '<div class="loading" style="margin-top:0;">Metadata reloaded. Waiting for cursor...</div>';
+              updateStatus("Metadata loaded. Watching cursor...");
+              pollContext();
+            }
+          })
+          .withFailureHandler(function(err) {
+            btn.innerText = originalText;
+            btn.disabled = false;
+            document.getElementById('content').innerHTML = `<div class="error">Failed to load: ${err}</div>`;
+            updateStatus("Connection failure");
+          })
+          .getMetadataContent(selectedTabTitle);
+      }
+
+      function pollContext() {
+        if (!isMetadataLoaded) return;
+
+        updateStatus("Scanning...");
+        google.script.run
+          .withSuccessHandler(onContextReceived)
+          .withFailureHandler(function(err) { 
+            console.log("Polling error", err); 
+          })
+          .getCurrentContext(contextRange);
+      }
+
+      function onContextReceived(contextText) {
+        if (!contextText) {
+          updateStatus("Idle / No text selected");
+          return;
+        }
+        
+        updateStatus("Active");
+
+        const matches = [];
+        const lowerContext = contextText.toLowerCase();
+
+        for (const [key, data] of Object.entries(cachedMetadata)) {
+          if (lowerContext.includes(key.toLowerCase())) {
+            matches.push({ 
+              key: key, 
+              description: data.description,
+              properties: data.properties,
+              category: data.category
+            });
+          }
+        }
+
+        renderMatches(matches);
+      }
+
+      function renderMatches(matches) {
+        const container = document.getElementById('content');
+        
+        if (matches.length === 0) {
+          container.innerHTML = '<div class="loading" style="margin-top:20px;">No relevant characters or locations found in this paragraph.</div>';
+          return;
+        }
+
+        let html = '';
+        matches.forEach(match => {
+          let catHtml = '';
+          if (showCategory && match.category) {
+            const safePath = match.category.replace(/>/g, '&#8250;'); 
+            catHtml = `<div class="card-category">${safePath}</div>`;
+          }
+
+          let propsHtml = '';
+          if (match.properties && Object.keys(match.properties).length > 0) {
+            propsHtml = '<div class="property-list">';
+            for (const [pKey, pVal] of Object.entries(match.properties)) {
+              propsHtml += `
+                <div class="property-row">
+                  <span class="property-key">${pKey}:</span>
+                  <span class="property-value">${pVal}</span>
+                </div>
+              `;
+            }
+            propsHtml += '</div>';
+          }
+
+          html += `
+            <div class="card">
+              <h4>${match.key}</h4>
+              ${catHtml}
+              <p>${match.description}</p>
+              ${propsHtml}
+            </div>
+          `;
+        });
+        
+        if (container.innerHTML !== html) {
+          container.innerHTML = html;
+        }
+      }
+
+      function updateStatus(msg) {
+        document.getElementById('status-indicator').textContent = msg;
+      }
+    </script>
+  </body>
+</html>
