@@ -29,9 +29,12 @@ function getMetadataContent(tabName) {
       'includeTabsContent': true
     });
 
+    // Check if inlineObjects exist in the response
+    var inlineObjects = doc.inlineObjects || {};
+
     if (!doc.tabs) {
       // Fallback for single-tab docs
-      return { items: parseBodyContent(doc.body.content) };
+      return { items: parseBodyContent(doc.body.content, inlineObjects) };
     }
 
     var metadataTab = doc.tabs.find(tab => tab.tabProperties.title === targetTabName);
@@ -40,7 +43,7 @@ function getMetadataContent(tabName) {
       return { error: "Tab named '" + targetTabName + "' not found." };
     }
 
-    var items = parseBodyContent(metadataTab.documentTab.body.content);
+    var items = parseBodyContent(metadataTab.documentTab.body.content, inlineObjects);
     return { items: items };
 
   } catch (e) {
@@ -67,7 +70,7 @@ function getTabList() {
  * Supports H1-H6 as categories/path.
  * Automatically populates descriptions for parent items if they are empty.
  */
-function parseBodyContent(contentArray) {
+function parseBodyContent(contentArray, inlineObjects) {
   var metadata = {};
   var buffer = []; 
   var headingStack = []; 
@@ -80,9 +83,22 @@ function parseBodyContent(contentArray) {
   contentArray.forEach(function(element) {
     if (element.paragraph) {
       var text = "";
+      var imageUrl = null;
+
       element.paragraph.elements.forEach(function(el) {
         if (el.textRun && el.textRun.content) {
           text += el.textRun.content;
+        } else if (el.inlineObjectElement && inlineObjects) {
+          var objectId = el.inlineObjectElement.inlineObjectId;
+          if (inlineObjects[objectId] &&
+              inlineObjects[objectId].inlineObjectProperties &&
+              inlineObjects[objectId].inlineObjectProperties.embeddedObject &&
+              inlineObjects[objectId].inlineObjectProperties.embeddedObject.imageProperties) {
+             // Capture the first image found in the paragraph
+             if (!imageUrl) {
+               imageUrl = inlineObjects[objectId].inlineObjectProperties.embeddedObject.imageProperties.contentUri;
+             }
+          }
         }
       });
       
@@ -93,7 +109,8 @@ function parseBodyContent(contentArray) {
 
       lines.push({
         text: text.trim(),
-        style: style
+        style: style,
+        imageUrl: imageUrl
       });
     }
   });
@@ -113,10 +130,22 @@ function parseBodyContent(contentArray) {
     }
 
     var properties = {};
+    var foundImageUrl = null;
+
+    // Check first line for image if present (unlikely with text but possible)
+    if (buf[0].imageUrl) foundImageUrl = buf[0].imageUrl;
+    if (!foundImageUrl && buf.length > 1 && buf[1].imageUrl) foundImageUrl = buf[1].imageUrl;
+
     var startIndex = (description !== "") ? 2 : 1;
 
     for (var i = startIndex; i < buf.length; i++) {
       var line = buf[i].text;
+
+      // Also check for image in subsequent lines
+      if (!foundImageUrl && buf[i].imageUrl) {
+        foundImageUrl = buf[i].imageUrl;
+      }
+
       if (line.startsWith("_")) break; 
 
       if (line.includes(":")) {
@@ -133,7 +162,8 @@ function parseBodyContent(contentArray) {
       metadata[name] = {
         description: description,
         properties: properties,
-        category: pathStr 
+        category: pathStr,
+        imageUrl: foundImageUrl
       };
     }
   }
@@ -159,7 +189,8 @@ function parseBodyContent(contentArray) {
       headingStack[level - 1] = lineObj.text;
       headingStack.length = level;
       
-    } else if (lineObj.text === "") {
+    } else if (lineObj.text === "" && !lineObj.imageUrl) {
+      // Empty line with no image acts as separator
       if (buffer.length > 0) {
         processBuffer(buffer, currentPath);
         buffer = [];
