@@ -4,9 +4,10 @@
     <base target="_top">
     <!-- Load Material Icons -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;600&display=swap" rel="stylesheet">
     <style>
       body {
-        font-family: 'Google Sans', Arial, sans-serif;
+        font-family: 'Google Sans', Arial, sans-serif; /* Default */
         background-color: #f9f9f9;
         color: #333;
         margin: 0;
@@ -50,18 +51,39 @@
 
       /* Sticky Note Style */
       .card {
-        background: #fffde7; /* Faint yellow hue */
-        border: 1px solid #e6e0b0; /* Subtle border matching the yellow */
-        border-radius: 0; /* Square corners */
+        position: relative;
+        /* Main background with paper texture and cut corner */
+        background:
+            repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(0,0,0,0.01) 2px, rgba(0,0,0,0.01) 3px),
+            linear-gradient(225deg, transparent 10px, #fffde7 10px);
+        background-color: transparent;
+
+        border: none;
+        border-radius: 0;
         padding: 12px;
-        margin-bottom: 12px;
-        box-shadow: 0 1px 2px rgba(60,64,67,0.15);
+        padding-top: 14px; /* extra space at top */
+        margin-bottom: 16px;
+        box-shadow: 2px 3px 6px rgba(60,64,67,0.2), 0 1px 2px rgba(60,64,67,0.15);
+      }
+
+      /* Dog-ear flap */
+      .card::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 14.2px; /* ~10px * sqrt(2) */
+        height: 14.2px;
+        background: linear-gradient(to bottom left, transparent 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1)) #fff59d;
+        box-shadow: -1px 1px 2px rgba(0,0,0,0.15);
+        display: block;
       }
 
       .card h4 {
-        margin: 0 0 2px 0; /* Reduced margin to stick closer to path */
-        color: #202124; /* Darker text for better contrast on yellow */
-        font-size: 16px;
+        margin: 0 0 4px 0;
+        color: #202124;
+        font-size: 17px;
+        letter-spacing: -0.2px;
       }
 
       /* Updated Category Path Style */
@@ -219,6 +241,16 @@
         padding: 16px;
       }
 
+      /* Serif Font Override Class */
+      body.font-serif {
+        font-family: 'Source Serif 4', serif;
+      }
+
+      body.font-serif .card h4 {
+        font-weight: 600;
+        font-size: 18px;
+      }
+
       .setting-item {
         margin-bottom: 20px; 
       }
@@ -347,6 +379,20 @@
           </div>
         </div>
 
+        <!-- Font Setting -->
+        <div class="setting-item">
+          <div class="setting-header-row">
+            <span class="setting-label">Font</span>
+            <select id="font-selector" class="setting-select" onchange="toggleFontSetting()">
+              <option value="sans">Sans-serif</option>
+              <option value="serif">Serif</option>
+            </select>
+          </div>
+          <div class="setting-description">
+            Choose between Sans-serif (Google Sans) or Serif (Source Serif) typography.
+          </div>
+        </div>
+
         <!-- Status Line Setting -->
         <div class="setting-item">
           <div class="setting-header-row">
@@ -397,6 +443,7 @@
       let showCategory = true;
       let selectedTabTitle = 'Metadata';
       let contextRange = 0;
+      let currentFont = 'sans';
 
       window.onload = function() {
         // Load settings from storage
@@ -426,6 +473,9 @@
         const savedRange = localStorage.getItem('novelHelper_contextRange');
         contextRange = savedRange ? parseInt(savedRange) : 0;
 
+        const savedFont = localStorage.getItem('novelHelper_font');
+        currentFont = savedFont || 'sans';
+
         // Update DOM
         document.getElementById('toggle-status').checked = showStatusLine;
         document.getElementById('toggle-category').checked = showCategory;
@@ -433,7 +483,10 @@
         document.getElementById('range-slider').value = contextRange;
         document.getElementById('range-value').innerText = contextRange;
 
+        document.getElementById('font-selector').value = currentFont;
+
         applyStatusVisibility();
+        applyFontSetting();
       }
 
       function loadTabList() {
@@ -478,6 +531,21 @@
         selectedTabTitle = select.value;
         localStorage.setItem('novelHelper_selectedTab', selectedTabTitle);
         fetchMetadata();
+      }
+
+      function toggleFontSetting() {
+        const select = document.getElementById('font-selector');
+        currentFont = select.value;
+        localStorage.setItem('novelHelper_font', currentFont);
+        applyFontSetting();
+      }
+
+      function applyFontSetting() {
+        if (currentFont === 'serif') {
+          document.body.classList.add('font-serif');
+        } else {
+          document.body.classList.remove('font-serif');
+        }
       }
 
       function updateRangeDisplay() {
