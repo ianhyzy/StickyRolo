@@ -29,12 +29,13 @@ function getMetadataContent(tabName) {
       'includeTabsContent': true
     });
 
-    // Check if inlineObjects exist in the response
-    var inlineObjects = doc.inlineObjects || {};
+    // Root level objects (mostly for single-tab or legacy docs)
+    var rootInlineObjects = doc.inlineObjects || {};
+    var rootPositionedObjects = doc.positionedObjects || {};
 
     if (!doc.tabs) {
       // Fallback for single-tab docs
-      return { items: parseBodyContent(doc.body.content, inlineObjects) };
+      return { items: parseBodyContent(doc.body.content, rootInlineObjects, rootPositionedObjects) };
     }
 
     var metadataTab = doc.tabs.find(tab => tab.tabProperties.title === targetTabName);
@@ -43,7 +44,12 @@ function getMetadataContent(tabName) {
       return { error: "Tab named '" + targetTabName + "' not found." };
     }
 
-    var items = parseBodyContent(metadataTab.documentTab.body.content, inlineObjects);
+    // IMPORTANT: Access objects specific to the tab if they exist, fallback to root
+    // Note: The API structure for tabs usually nests these under documentTab
+    var tabInlineObjects = metadataTab.documentTab.inlineObjects || rootInlineObjects;
+    var tabPositionedObjects = metadataTab.documentTab.positionedObjects || rootPositionedObjects;
+
+    var items = parseBodyContent(metadataTab.documentTab.body.content, tabInlineObjects, tabPositionedObjects);
     return { items: items };
 
   } catch (e) {
@@ -70,11 +76,15 @@ function getTabList() {
  * Supports H1-H6 as categories/path.
  * Automatically populates descriptions for parent items if they are empty.
  */
-function parseBodyContent(contentArray, inlineObjects) {
+function parseBodyContent(contentArray, inlineObjects, positionedObjects) {
   var metadata = {};
   var buffer = []; 
   var headingStack = []; 
   var currentPath = "";
+
+  // Ensure objects are defined
+  inlineObjects = inlineObjects || {};
+  positionedObjects = positionedObjects || {};
 
   if (!contentArray) return metadata;
 
@@ -85,6 +95,7 @@ function parseBodyContent(contentArray, inlineObjects) {
       var text = "";
       var imageUrl = null;
 
+      // Check for Inline Objects (inside text elements)
       element.paragraph.elements.forEach(function(el) {
         if (el.textRun && el.textRun.content) {
           text += el.textRun.content;
@@ -94,7 +105,7 @@ function parseBodyContent(contentArray, inlineObjects) {
               inlineObjects[objectId].inlineObjectProperties &&
               inlineObjects[objectId].inlineObjectProperties.embeddedObject &&
               inlineObjects[objectId].inlineObjectProperties.embeddedObject.imageProperties) {
-             // Capture the first image found in the paragraph
+
              if (!imageUrl) {
                imageUrl = inlineObjects[objectId].inlineObjectProperties.embeddedObject.imageProperties.contentUri;
              }
@@ -102,6 +113,19 @@ function parseBodyContent(contentArray, inlineObjects) {
         }
       });
       
+      // Check for Positioned Objects (anchored to paragraph)
+      if (!imageUrl && element.paragraph.positionedObjectIds && positionedObjects) {
+        element.paragraph.positionedObjectIds.forEach(function(objectId) {
+          if (!imageUrl && positionedObjects[objectId] &&
+              positionedObjects[objectId].positionedObjectProperties &&
+              positionedObjects[objectId].positionedObjectProperties.embeddedObject &&
+              positionedObjects[objectId].positionedObjectProperties.embeddedObject.imageProperties) {
+
+            imageUrl = positionedObjects[objectId].positionedObjectProperties.embeddedObject.imageProperties.contentUri;
+          }
+        });
+      }
+
       var style = "NORMAL_TEXT";
       if (element.paragraph.paragraphStyle && element.paragraph.paragraphStyle.namedStyleType) {
         style = element.paragraph.paragraphStyle.namedStyleType;
@@ -117,7 +141,8 @@ function parseBodyContent(contentArray, inlineObjects) {
 
   // 2. Helper to process buffer into a metadata item
   function processBuffer(buf, pathStr) {
-    while(buf.length > 0 && buf[0].text === "") {
+    // IMPORTANT: Only shift if text is empty AND NO IMAGE.
+    while(buf.length > 0 && buf[0].text === "" && !buf[0].imageUrl) {
       buf.shift();
     }
     
@@ -132,8 +157,9 @@ function parseBodyContent(contentArray, inlineObjects) {
     var properties = {};
     var foundImageUrl = null;
 
-    // Check first line for image if present (unlikely with text but possible)
+    // Check first line for image if present
     if (buf[0].imageUrl) foundImageUrl = buf[0].imageUrl;
+    // Check second line
     if (!foundImageUrl && buf.length > 1 && buf[1].imageUrl) foundImageUrl = buf[1].imageUrl;
 
     var startIndex = (description !== "") ? 2 : 1;
