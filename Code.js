@@ -31,13 +31,9 @@ function getMetadataContent(tabName) {
       'includeTabsContent': true
     });
 
-    // Root level objects (mostly for single-tab or legacy docs)
-    var rootInlineObjects = doc.inlineObjects || {};
-    var rootPositionedObjects = doc.positionedObjects || {};
-
     if (!doc.tabs) {
       // Fallback for single-tab docs
-      return { items: parseBodyContent(doc.body.content, rootInlineObjects, rootPositionedObjects) };
+      return { items: parseBodyContent(doc.body.content) };
     }
 
     var metadataTab = doc.tabs.find(tab => tab.tabProperties.title === targetTabName);
@@ -46,12 +42,7 @@ function getMetadataContent(tabName) {
       return { error: "Tab named '" + targetTabName + "' not found." };
     }
 
-    // IMPORTANT: Access objects specific to the tab if they exist, fallback to root
-    // Note: The API structure for tabs usually nests these under documentTab
-    var tabInlineObjects = metadataTab.documentTab.inlineObjects || rootInlineObjects;
-    var tabPositionedObjects = metadataTab.documentTab.positionedObjects || rootPositionedObjects;
-
-    var items = parseBodyContent(metadataTab.documentTab.body.content, tabInlineObjects, tabPositionedObjects);
+    var items = parseBodyContent(metadataTab.documentTab.body.content);
     return { items: items };
 
   } catch (e) {
@@ -78,15 +69,11 @@ function getTabList() {
  * Supports H1-H6 as categories/path.
  * Automatically populates descriptions for parent items if they are empty.
  */
-function parseBodyContent(contentArray, inlineObjects, positionedObjects) {
+function parseBodyContent(contentArray) {
   var metadata = {};
   var buffer = []; 
   var headingStack = []; 
   var currentPath = "";
-
-  // Ensure objects are defined
-  inlineObjects = inlineObjects || {};
-  positionedObjects = positionedObjects || {};
 
   if (!contentArray) return metadata;
 
@@ -95,39 +82,12 @@ function parseBodyContent(contentArray, inlineObjects, positionedObjects) {
   contentArray.forEach(function(element) {
     if (element.paragraph) {
       var text = "";
-      var imageUrl = null;
-
-      // Check for Inline Objects (inside text elements)
       element.paragraph.elements.forEach(function(el) {
         if (el.textRun && el.textRun.content) {
           text += el.textRun.content;
-        } else if (el.inlineObjectElement && inlineObjects) {
-          var objectId = el.inlineObjectElement.inlineObjectId;
-          if (inlineObjects[objectId] &&
-              inlineObjects[objectId].inlineObjectProperties &&
-              inlineObjects[objectId].inlineObjectProperties.embeddedObject &&
-              inlineObjects[objectId].inlineObjectProperties.embeddedObject.imageProperties) {
-
-             if (!imageUrl) {
-               imageUrl = inlineObjects[objectId].inlineObjectProperties.embeddedObject.imageProperties.contentUri;
-             }
-          }
         }
       });
       
-      // Check for Positioned Objects (anchored to paragraph)
-      if (!imageUrl && element.paragraph.positionedObjectIds && positionedObjects) {
-        element.paragraph.positionedObjectIds.forEach(function(objectId) {
-          if (!imageUrl && positionedObjects[objectId] &&
-              positionedObjects[objectId].positionedObjectProperties &&
-              positionedObjects[objectId].positionedObjectProperties.embeddedObject &&
-              positionedObjects[objectId].positionedObjectProperties.embeddedObject.imageProperties) {
-
-            imageUrl = positionedObjects[objectId].positionedObjectProperties.embeddedObject.imageProperties.contentUri;
-          }
-        });
-      }
-
       var style = "NORMAL_TEXT";
       if (element.paragraph.paragraphStyle && element.paragraph.paragraphStyle.namedStyleType) {
         style = element.paragraph.paragraphStyle.namedStyleType;
@@ -135,16 +95,14 @@ function parseBodyContent(contentArray, inlineObjects, positionedObjects) {
 
       lines.push({
         text: text.trim(),
-        style: style,
-        imageUrl: imageUrl
+        style: style
       });
     }
   });
 
   // 2. Helper to process buffer into a metadata item
   function processBuffer(buf, pathStr) {
-    // IMPORTANT: Only shift if text is empty AND NO IMAGE.
-    while(buf.length > 0 && buf[0].text === "" && !buf[0].imageUrl) {
+    while(buf.length > 0 && buf[0].text === "") {
       buf.shift();
     }
     
@@ -157,23 +115,10 @@ function parseBodyContent(contentArray, inlineObjects, positionedObjects) {
     }
 
     var properties = {};
-    var foundImageUrl = null;
-
-    // Check first line for image if present
-    if (buf[0].imageUrl) foundImageUrl = buf[0].imageUrl;
-    // Check second line
-    if (!foundImageUrl && buf.length > 1 && buf[1].imageUrl) foundImageUrl = buf[1].imageUrl;
-
     var startIndex = (description !== "") ? 2 : 1;
 
     for (var i = startIndex; i < buf.length; i++) {
       var line = buf[i].text;
-
-      // Also check for image in subsequent lines
-      if (!foundImageUrl && buf[i].imageUrl) {
-        foundImageUrl = buf[i].imageUrl;
-      }
-
       if (line.startsWith("_")) break; 
 
       if (line.includes(":")) {
@@ -190,8 +135,7 @@ function parseBodyContent(contentArray, inlineObjects, positionedObjects) {
       metadata[name] = {
         description: description,
         properties: properties,
-        category: pathStr,
-        imageUrl: foundImageUrl
+        category: pathStr 
       };
     }
   }
@@ -217,8 +161,7 @@ function parseBodyContent(contentArray, inlineObjects, positionedObjects) {
       headingStack[level - 1] = lineObj.text;
       headingStack.length = level;
       
-    } else if (lineObj.text === "" && !lineObj.imageUrl) {
-      // Empty line with no image acts as separator
+    } else if (lineObj.text === "") {
       if (buffer.length > 0) {
         processBuffer(buffer, currentPath);
         buffer = [];
